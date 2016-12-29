@@ -1,0 +1,68 @@
+# 2016 November 5
+# https://github.com/bevry/base
+
+# Use the latest travis infrastructure
+sudo: false
+
+# https://github.com/nodejs/LTS
+language: node_js
+node_js:
+  - "0.8"   # end of life
+  - "0.10"  # end of life
+  - "0.12"  # maintenance
+  - "4"     # lts
+  - "6"     # lts
+  - "7"     # stable
+matrix:
+  fast_finish: true
+  allow_failures:
+    - node_js: "0.8"
+    - node_js: "0.10"
+cache:
+  directories:
+    - node_modules
+
+# Ensure npm is up to date
+# Ensure dependencies install with a LTS node version
+install: |
+  export CURRENT_NPM_VERSION="$(npm --version)"
+  export LATEST_NPM_VERSION="$(npm view npm version)"
+  if test "$CURRENT_NPM_VERSION" != "$LATEST_NPM_VERSION"; then
+    echo "running an old npm version, upgrading"
+    npm instal npm --global --cache-min=Infinity
+  fi
+
+  export CURRENT_NODE_VERSION="$(node --version)"
+  export LTS_NODE_VERSIONS="$(nvm ls-remote --lts)"
+  if echo "$LTS_NODE_VERSIONS" | grep "$CURRENT_NODE_VERSION"; then
+    echo "running on a LTS node version, completing setup"
+    npm run our:setup
+  else
+    echo "running on a non-LTS node version, completing setup on a LTS node version"
+    nvm install --lts
+    export LTS_NODE_VERSION="$(node --version)"
+    npm run our:setup
+    nvm use "$TRAVIS_NODE_VERSION"
+  fi
+
+# Ensure compilation and linting occur on an LTS node version
+before_script: |
+  if test "$LTS_NODE_VERSION"; then
+    echo "running on a non-LTS node version, compiling with LTS, skipping linting"
+    nvm use "$LTS_NODE_VERSION"
+    npm run our:compile
+    nvm use "$TRAVIS_NODE_VERSION"
+  else
+    echo "running on a LTS node version, compiling and linting"
+    npm run our:compile && npm run our:verify
+  fi
+
+# Custom notifications
+# travis encrypt --org "$SLACK_SUBDOMAIN:$SLACK_TRAVIS_TOKEN#updates" --add notifications.slack
+# travis encrypt --org "$TRAVIS_NOTIFICATION_EMAIL" --add notifications.email.recipients
+notifications:
+  slack:
+    secure: mXlw/ORdf1THLWQhbvvSmpbLaatiy674t080U6QElJKWJpHRvWa4WoyVT7UzYCO+OVpMEJS0xLOs8K5ll2m1m801//UhBRnizpSfYBA7NHHbV/kg2ji6qjreQmvirf5BqRjLVqevsguzq0H7WALu5lEuN1kBF4FWsqvmW5nEhrN8aFfLat0HkQ7XT2pCmWyJCD4pZiHnrXTv01MnlrJ7PfoYmIC8j0IXL8e1aI2SVZw/BYcy5ZLlwX/zpTKKzyELtoJ9sSvlGoZE2Y2FQmezLbKpFqZNl6MyX733skFfiWUHGPvWyp4sYgrIHtFZw7cvFUUMGHMbIqzNg3EY8WGvPERS58pB696eBvUiqGcQbKcJI/TScBomrMASAGjIWq0IOFZygvcVg/Ib+AHUpQzFYl9HHoGw5NDz5IQxoZm3U1GisM0/kzYWc7ezjW/TxrABcvryckhzLwhENoT7PtkwzmsjaZa49H2ywwWpFg7A+oGMpr8UC9D5LQVhrCvKV0a0S0ua+l8nqJP67leAsKNOECLY+/eo7CznYbeQRvZFCOLRb4yCKOG+NkSVKL7iu0dqt1so+kpDNkPvBEQYqCOc0iA+m7jbXwa/95WUyTCzw7j5IwJ4R63fvujFbSxmrI4S2cDOYm/pVAgNmNMEnvmtE5kCUFK5Rue7fdJwZ2Ez5QY=
+  email:
+    recipients:
+      secure: XP2/ic7HwkY5iqmtwnKMc0ruthVXBHu9zsv72XUHRY64i8+T0gPqO2Zvg9gXCsdYBa8+2GZGCUhZULUksA1hkCBq7U3KobBxkr2d9hPK7WKUINufbDficbp63/z18oQ91YvHokBqHLxlwKy/BRgtS/4GttFc1/MLM3sWXueap5D4Onj/g8NV+Xfj4YeOQ4lg89AwROmHYk1tRUZWl4RfSVSI4N5oBfUeLuxuv1KFGOSFdIxxD63D7A3UIjh2uPMVnz0Zq7AVSmlhMMbVkY5vv+d/1OXfmsjZgFFV2QfFKNkCkTE8l2c1tNba9HS+aywNMNXe5IlwkKF/S5vyutopvtbbeTDPnUqTqKotuQQrAZOsrPet/enluDBbo/28KlwTDj0KOpp7+y2rfAzkZ9L29+/bAwCJKDfpj8R3bP8c3gk0QeCi93mnzwJRqUrvzT5QSbGsh5Ikw+cQz0L7dZqQpyNCpr0amhOX3ZmlmOQBdIy2Zt7rKSYeRCk66544pbkAA8ePoo1hJ4KSt2s5xqTaqkZnLcwKHYv4rhGqAcyw5kwwrQaCB5X/OFOs0VfEYceh2YLvcPrtb68hR1UJXCSvdaPPW7sbAb74poLoIwbuC8BkTL4LxaDVLUzfCHgM78DcDH0zo76XB3+UOZuWPRcVrpWs3LHQfQB2fqFeQSoZt54=
